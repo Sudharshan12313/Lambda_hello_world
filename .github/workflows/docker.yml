@@ -1,0 +1,58 @@
+name: Build and Push Docker Images to ECR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+          role-to-assume: arn:aws:iam::183114607892:role/github_actions_oidc
+          role-session-name: githubactions
+          aws-region: "us-west-2"      
+
+    # Log in to Amazon ECR
+    - name: Log in to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
+      # env:
+      #    AWS_REGION: ${{ secrets.AWS_REGION }}
+      #    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    # Build, tag, and push Docker image for Hello World Service
+    - name: Build, Tag & Push Docker Image for Hello World Service
+      run: |
+        cd App/hello-world/
+        docker build -t hello-world:latest -f Dockerfile .
+        docker tag hello-world:latest ${{ secrets.AWS_ECR_HELLO_URL }}:latest
+        docker push ${{ secrets.AWS_ECR_HELLO_URL }}:latest
+
+    # # Build, tag, and push Docker image for Appointment Service
+    # - name: Build, Tag & Push Docker Image for Appointment Service
+    #   run: |
+    #     cd App/Appointment/
+    #     docker build -t appointment-service:latest -f Dockerfile .
+    #     docker tag appointment-service:latest ${{ secrets.AWS_ECR_APPOINTMENT_URL }}:latest
+    #     docker push ${{ secrets.AWS_ECR_APPOINTMENT_URL }}:latest
+
+    # Optionally, remove local Docker images after pushing
+    #docker rmi ${{ secrets.AWS_ECR_APPOINTMENT_URL }}:latest
+    - name: Cleanup local Docker images
+      run: |
+        docker rmi ${{ secrets.AWS_ECR_HELLO_URL }}:latest
+        
